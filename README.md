@@ -6,11 +6,17 @@
 
 This is an attempt at getting claude code to create a compatible python library with the following requirements: 
 
+FULL YOLO MODE
+```
+echo 'alias claude-yolo="claude --dangerously-skip-permissions"' >> ~/.bashrc
+```
+
 - Attempt #1 on 10 Aug 2025
 
 - it must leverage encryption and serialization that can interface with https://github.com/hortinstein/enkodo/tree/master that will be cloned in temp
 - it must be binary compatible with the serialization that enkodo uses: nims Flatty libary: https://github.com/treeform/flatty
-- core functionality should be created in only the following files:
+- you should make a 
+- it is okay to create additional debug files, but core functionality should be created in only the following files:
   - ```flatty.py``` implements that serialization and deserialization of nim types
   - ```enkodo.py``` impelments the pymonocypher libraries https://github.com/jetperch/pymonocypher 
   - ```test_encyption.py``` tests the encyption with pytest
@@ -21,6 +27,7 @@ This is an attempt at getting claude code to create a compatible python library 
     curl https://nim-lang.org/choosenim/init.sh -sSf | sh
     cd temp && nimble install && nimble test && cd ..
     ```
+- DO NOT MODIFY the NIM FILES
 - it must also support serialization and deserialization for the following nim types in python:
 
     ``` nim
@@ -36,12 +43,12 @@ This is an attempt at getting claude code to create a compatible python library 
 
     type
     StaticConfig* = ref object
-        buildID*: string      #generated on build
+        buildID*: string      #generated on build MAX 12 bytes
         deploymentID*: string #generated on deployment
         c2PubKey*: Key        #to ensure the C2 is the one we want to talk to 
         killEpoch*: int32  #what point should the agent stop calling back and delete
         interval*: int32   #how often should the agent call back
-        callback*: string  #where the C2 is 
+        callback*: string  #where the C2 is MAX LENGTH 256 bytes, should be padded to this everytime to keep size consistent
 
     type 
     Status* = object

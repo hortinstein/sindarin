@@ -1,3 +1,5 @@
+Taken from here: https://news.ycombinator.com/item?id=44836879
+
 # Development Guidelines
 
 ## Philosophy
