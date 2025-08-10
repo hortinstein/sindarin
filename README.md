@@ -4,7 +4,7 @@
   <img src="https://tcgplayer-cdn.tcgplayer.com/product/488291_in_1000x1000.jpg" width="400" alt="Sol Ring - Dwarven (0409) - Commander: The Lord of the Rings: Tales of Middle-earth (LTC)">
 </div>
 
-This is an attempt at getting claude code to create a compatible python library with the following requirements: 
+This is an attempt at getting claude code to create a compatible python library with the following .  It is an educational project that attempts to leverage AI for binary compatibility and reading things from another project: 
 
 FULL YOLO MODE
 ```
