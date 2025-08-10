@@ -11,11 +11,12 @@ FULL YOLO MODE
 echo 'alias claude-yolo="claude --dangerously-skip-permissions"' >> ~/.bashrc
 ```
 
-- Attempt #1 on 10 Aug 2025
+- Attempt #1 on 10 Aug 2025: went ok, but failed on CONFIG decryption adding another test with some instructions (Sonent 4)
+- Attempt #2 on 10 Aug 2025: (Sonnet 4)
 
+- look at CLAUDE.md, make sure the reports are stored in ```reports/``` folder 
 - it must leverage encryption and serialization that can interface with https://github.com/hortinstein/enkodo/tree/master that will be cloned in temp
 - it must be binary compatible with the serialization that enkodo uses: nims Flatty libary: https://github.com/treeform/flatty
-- you should make a 
 - it is okay to create additional debug files, but core functionality should be created in only the following files:
   - ```flatty.py``` implements that serialization and deserialization of nim types
   - ```enkodo.py``` impelments the pymonocypher libraries https://github.com/jetperch/pymonocypher 
