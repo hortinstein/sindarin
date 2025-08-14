@@ -1,0 +1,6 @@
+{
+  "killEpoch": "1764091654",
+  "interval": "1",
+  "callback": "http://localhost:8080/release",
+  "c2PrivKey": "a52569c9b287ab697e4ac18cccf91b14d7d78778162b70a4637cf1db22709f92"
+}
