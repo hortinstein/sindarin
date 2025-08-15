@@ -13,6 +13,7 @@ echo 'alias claude-yolo="claude --dangerously-skip-permissions"' >> ~/.bashrc
 
 - Attempt #1 on 10 Aug 2025: went ok, but failed on CONFIG decryption adding another test with some instructions (Sonent 4)
 - Attempt #2 on 10 Aug 2025: (Sonnet 4)
+- Attempt #3 on 15 Aug 2025: (Sonnet 4)
 
 - look at CLAUDE.md, make sure the reports are stored in ```reports/``` folder 
 - it must leverage encryption and serialization that can interface with https://github.com/hortinstein/enkodo/tree/master that will be cloned in temp
@@ -28,7 +29,8 @@ echo 'alias claude-yolo="claude --dangerously-skip-permissions"' >> ~/.bashrc
     curl https://nim-lang.org/choosenim/init.sh -sSf | sh
     cd temp && nimble install && nimble test && cd ..
     ```
-- DO NOT MODIFY the NIM FILES
+- DO NOT MODIFY the NIM FILES in the temp directory
+- Additionally there are files in nim_config that can generate a release and debug config.  Please ensure this is run and the python version can read and fully deserialize and decrypt those objects
 - it must also support serialization and deserialization for the following nim types in python:
 
     ``` nim
