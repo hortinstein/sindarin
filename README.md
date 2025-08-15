@@ -29,8 +29,7 @@ echo 'alias claude-yolo="claude --dangerously-skip-permissions"' >> ~/.bashrc
     curl https://nim-lang.org/choosenim/init.sh -sSf | sh
     cd temp && nimble install && nimble test && cd ..
     ```
-- DO NOT MODIFY the NIM FILES in the temp directory
-- Additionally there are files in nim_config that can generate a release and debug config.  Please ensure this is run and the python version can read and fully deserialize and decrypt those objects
+- Additionally there are files in nim_config that can generate a release and debug config.  Please ensure this is run and the python version can read and fully deserialize and decrypt those objects.  You can add additional print statements to these files if it helps
 - it must also support serialization and deserialization for the following nim types in python:
 
     ``` nim
