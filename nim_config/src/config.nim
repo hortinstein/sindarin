@@ -71,6 +71,8 @@ proc createEncConfig(config:StaticConfig): EncConfig =
   let configBytes = cast[seq[byte]](serConfig(config))
   let encConfig = new EncConfig
   let (priv,pub) = generateKeyPair()
+  echo "DEBUG EncConfig priv:", priv
+  echo "DEBUG EncConfig pub:", pub
   encConfig.privKey = priv
   encConfig.pubKey = pub 
   encConfig.encObj = enc(encConfig.privKey, encConfig.pubKey,configBytes)
@@ -94,16 +96,14 @@ proc genOutFile(configIn:string,configOut:string)=
   newConfig.interval = int32(configJSON["interval"].getInt)
   let encConfig = createEncConfig(newConfig)
   
-  echo encConfig
+  echo "EncConfig pubkey: ",encConfig.pubKey
+  echo "EncConfig privkey: ",encConfig.privKey
+  echo "EncConfig EncObj : ",encConfig.encObj
   
   let b64Str = b64Str(toFlatty(encConfig))
   writeStringToFile(configOut, b64Str)
 
 when isMainModule:
-  
   let dConfigOut = "debug.config"
   let dConfigIn = "debug.json"
   genOutFile(dConfigIn,dConfigOut)
-  let rConfigOut = "release.config"
-  let rConfigIn = "release.json"
-  genOutFile(rConfigIn,rConfigOut)

@@ -1,155 +1,115 @@
-Taken from here: https://news.ycombinator.com/item?id=44836879
+### Sindarin
 
-# Development Guidelines
+<div align="center">
+  <img src="https://tcgplayer-cdn.tcgplayer.com/product/488291_in_1000x1000.jpg" width="400" alt="Sol Ring - Dwarven (0409) - Commander: The Lord of the Rings: Tales of Middle-earth (LTC)">
+</div>
 
-## Philosophy
+This is an attempt at getting claude code to create a compatible python library with the following .  It is an educational project that attempts to leverage AI for binary compatibility and reading things from another project: 
 
-### Core Beliefs
+- it must leverage encryption and serialization that can interface with https://github.com/hortinstein/enkodo/tree/master that will be cloned in temp
+- it must be binary compatible with the serialization that enkodo uses: nims Flatty libary: https://github.com/treeform/flatty
+- it is okay to create additional debug files, but core functionality should be created in only the following files:
+  - ```flatty.py``` implements that serialization and deserialization of nim types
+  - ```enkodo.py``` impelments the pymonocypher libraries https://github.com/jetperch/pymonocypher 
+  - ```test_encyption.py``` tests the encyption with pytest
+  - ```test_serialization.py``` tests the de--serialization with the foundational artifacts in the nim test ```nim_config/debug.config```
+- Additionally there are files in nim_config that can generate a debug config.  Please ensure this is run and the python version can read and fully deserialize and decrypt those objects. you can run this test with "cd nim_config && nimble run" which has examples for how nim is creating the file, use this to test deserialization is working correctly!   
+- it must also support serialization and deserialization for the following nim types in python:
 
-- **Incremental progress over big bangs** - Small changes that compile and pass tests
-- **Learning from existing code** - Study and plan before implementing
-- **Pragmatic over dogmatic** - Adapt to project reality
-- **Clear intent over clever code** - Be boring and obvious
+    ``` nim
+    from enkodo/serialize import EncObj, Key, Nonce, Mac
+    export Key, Nonce, Mac, EncObj
 
-### Simplicity Means
+    #this is used to store the encrypted bytes
+    type
+    EncConfig* = ref object
+        privKey*: Key
+        pubKey*: Key
+        encObj*: EncObj
 
-- Single responsibility per function/class
-- Avoid premature abstractions
-- No clever tricks - choose the boring solution
-- If you need to explain it, it's too complex
+    type
+    StaticConfig* = ref object
+        buildID*: string      #generated on build MAX 12 bytes
+        deploymentID*: string #generated on deployment
+        c2PubKey*: Key        #to ensure the C2 is the one we want to talk to 
+        killEpoch*: int32  #what point should the agent stop calling back and delete
+        interval*: int32   #how often should the agent call back
+        callback*: string  #where the C2 is MAX LENGTH 256 bytes, should be padded to this everytime to keep size consistent
 
-## Process
+    type 
+    Status* = object
+        ip*: string
+        externalIP*: string
+        hostname*: string
+        os*: string
+        arch*: string
+        users*: string
+        bootTime*: int
 
-### 1. Planning & Staging
+    type
+    Callback* = ref object
+        config*: StaticConfig
+        status*: Status
 
-Break complex work into 3-5 stages. Document in `IMPLEMENTATION_PLAN.md`:
+    # Define a type for tasks
+    type 
+    Task* = object
+        taskId*: string # Unique identifier for the task
+        taskNum*: int # Task number
+        retrieved*: bool # Whether the task has been retrieved
+        complete*: bool # Whether the task has been completed
+        arg*: string # Request data for the task
+        resp*: string # Response data for the task
 
-```markdown
-## Stage N: [Name]
-**Goal**: [Specific deliverable]
-**Success Criteria**: [Testable outcomes]
-**Tests**: [Specific test cases]
-**Status**: [Not Started|In Progress|Complete]
+    # Define a type for responses
+    type
+    Resp* = object
+        taskId*: string # Unique identifier for the task
+        resp*: string # Response data for the task
+    ``` 
+
+
+Here is an example on how you could to use pymonocypher:
+
+``` python
+import monocypher
+def generate_key_pair() -> Tuple[bytes, bytes]:
+    """Generate a public/private key pair using random bytes"""
+    # Use monocypher's built-in key pair generation
+    private_key, public_key = monocypher.generate_key_exchange_key_pair()
+    return private_key,public_key
+
+def encrypt(sender_private_key: bytes, recipient_public_key: bytes, message: bytes, ) -> bytes:
+    """Encrypt message using crypto_lock"""
+    nonce = secrets.token_bytes(24)
+    
+    # Perform key exchange to get shared key
+    shared_key = monocypher.key_exchange(sender_private_key, recipient_public_key)
+    
+    # Use monocypher's lock function with shared key
+    mac, ciphertext = monocypher.lock(shared_key, nonce, message)
+    exchange_key = monocypher.compute_key_exchange_public_key(sender_private_key)
+    # Return nonce + mac + ciphertext
+    return exchange_key + nonce + mac  + ciphertext
+
+
+def decrypt(private_key: bytes,encrypted_data: bytes) -> Optional[bytes]:
+    """Decrypt message using crypto_unlock"""
+    if len(encrypted_data) < 72:  # 32 + 24 + 16 minimum
+        return None
+    public_key = encrypted_data[:32]  # First 32 bytes are the public key
+    nonce = encrypted_data[32:56]
+    mac = encrypted_data[56:72]
+    ciphertext = encrypted_data[72:]
+    try:
+        # Perform key exchange to get shared key
+        shared_key = monocypher.key_exchange(private_key, public_key)
+        print("shared_key", shared_key)
+        # Use monocypher's unlock function with shared key
+        plaintext = monocypher.unlock(shared_key, nonce, mac, ciphertext)
+        print ("plaintext", plaintext)
+        return plaintext
+    except Exception:
+        print ("decryption failed")
+        return None
 ```
-- Update status as you progress
-- Remove file when all stages are done
-
-### 2. Implementation Flow
-
-1. **Understand** - Study existing patterns in codebase
-2. **Test** - Write test first (red)
-3. **Implement** - Minimal code to pass (green)
-4. **Refactor** - Clean up with tests passing
-5. **Commit** - With clear message linking to plan
-
-### 3. When Stuck (After 3 Attempts)
-
-**CRITICAL**: Maximum 3 attempts per issue, then STOP.
-
-1. **Document what failed**:
-   - What you tried
-   - Specific error messages
-   - Why you think it failed
-
-2. **Research alternatives**:
-   - Find 2-3 similar implementations
-   - Note different approaches used
-
-3. **Question fundamentals**:
-   - Is this the right abstraction level?
-   - Can this be split into smaller problems?
-   - Is there a simpler approach entirely?
-
-4. **Try different angle**:
-   - Different library/framework feature?
-   - Different architectural pattern?
-   - Remove abstraction instead of adding?
-
-## Technical Standards
-
-### Architecture Principles
-
-- **Dont use classes** - Try not to use classes whenever possible
-- **Composition over inheritance** - Use dependency injection
-- **Interfaces over singletons** - Enable testing and flexibility
-- **Explicit over implicit** - Clear data flow and dependencies
-- **Test-driven when possible** - Never disable tests, fix them
-
-### Code Quality
-
-- **Every commit must**:
-  - Compile successfully
-  - Pass all existing tests
-  - Include tests for new functionality
-  - Follow project formatting/linting
-
-- **Before committing**:
-  - Run formatters/linters
-  - Self-review changes
-  - Ensure commit message explains "why"
-
-### Error Handling
-
-- Fail fast with descriptive messages
-- Include context for debugging
-- Handle errors at appropriate level
-- Never silently swallow exceptions
-
-## Decision Framework
-
-When multiple valid approaches exist, choose based on:
-
-1. **Testability** - Can I easily test this?
-2. **Readability** - Will someone understand this in 6 months?
-3. **Consistency** - Does this match project patterns?
-4. **Simplicity** - Is this the simplest solution that works?
-5. **Reversibility** - How hard to change later?
-
-## Project Integration
-
-### Learning the Codebase
-
-- Find 3 similar features/components
-- Identify common patterns and conventions
-- Use same libraries/utilities when possible
-- Follow existing test patterns
-
-### Tooling
-
-- Use project's existing build system
-- Use project's test framework
-- Use project's formatter/linter settings
-- Don't introduce new tools without strong justification
-
-## Quality Gates
-
-### Definition of Done
-
-- [ ] Tests written and passing
-- [ ] Code follows project conventions
-- [ ] No linter/formatter warnings
-- [ ] Commit messages are clear
-- [ ] Implementation matches plan
-- [ ] No TODOs without issue numbers
-
-### Test Guidelines
-
-- Test behavior, not implementation
-- One assertion per test when possible
-- Clear test names describing scenario
-- Use existing test utilities/helpers
-- Tests should be deterministic
-
-## Important Reminders
-
-**NEVER**:
-- Use `--no-verify` to bypass commit hooks
-- Disable tests instead of fixing them
-- Commit code that doesn't compile
-- Make assumptions - verify with existing code
-
-**ALWAYS**:
-- Commit working code incrementally
-- Update plan documentation as you go
-- Learn from existing implementations
-- Stop after 3 failed attempts and reassess
