@@ -1,0 +1,4 @@
+I think I see the problem, i need it to be crypto_key_exchange and that was deprecated in the version the python libary is using: https://monocypher.org/changelog
+
+is it possible to make a binary compatble crypto_key_exchange with the one that was deprecated so I can use it in python
+the nim library uses it and I cannot upgade

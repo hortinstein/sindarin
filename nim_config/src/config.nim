@@ -8,7 +8,7 @@ import flatty
 
 import types
 import enkodo
-from monocypher import crypto_key_exchange_public_key
+from monocypher import crypto_key_exchange_public_key, crypto_key_exchange
 
 let URL_MAX_LEN = 256
 let BUILD_ID_LEN = 12  
@@ -98,7 +98,11 @@ proc genOutFile(configIn:string,configOut:string)=
   
   echo "EncConfig pubkey: ",encConfig.pubKey
   echo "EncConfig privkey: ",encConfig.privKey
-  echo "EncConfig EncObj : ",encConfig.encObj
+  # echo "EncConfig EncObj : ",encConfig.encObj
+  let sharedKey = crypto_key_exchange(encConfig.privKey,encConfig.pubKey)
+  echo "shared key : ",sharedKey
+
+  echo "shared key : ",sharedKey
   
   let b64Str = b64Str(toFlatty(encConfig))
   writeStringToFile(configOut, b64Str)
