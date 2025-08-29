@@ -263,6 +263,8 @@ def to_flatty(obj: Any) -> bytes:
     
     elif isinstance(obj, EncConfig):
         result = b""
+        # EncConfig is a ref object in Nim, so add the ref indicator byte
+        result += b"\x00"
         result += obj.privKey.data
         result += obj.pubKey.data
         result += to_flatty(obj.encObj)
@@ -279,6 +281,8 @@ def to_flatty(obj: Any) -> bytes:
     
     elif isinstance(obj, StaticConfig):
         result = b""
+        # StaticConfig is a ref object in Nim, so add the ref indicator byte
+        result += b"\x00"  # false = not nil
         result += FlattySerializer.serialize_string(obj.buildID)
         result += FlattySerializer.serialize_string(obj.deploymentID)
         result += obj.c2PubKey.data
@@ -300,6 +304,8 @@ def to_flatty(obj: Any) -> bytes:
     
     elif isinstance(obj, Callback):
         result = b""
+        # Callback is a ref object in Nim, so add the ref indicator byte
+        result += b"\x00"  # false = not nil
         result += to_flatty(obj.config)
         result += to_flatty(obj.status)
         return result
@@ -340,7 +346,8 @@ def from_flatty(data: bytes, obj_type: type) -> Any:
         offset += 32
         pub_key = Key(data[offset:offset+32])
         offset += 32
-        enc_obj, remaining_offset = from_flatty(data[offset:], EncObj)
+        enc_obj, enc_obj_offset = from_flatty(data[offset:], EncObj)
+        offset += enc_obj_offset
         return EncConfig(priv_key, pub_key, enc_obj)
     
     elif obj_type == EncObj:
@@ -351,9 +358,15 @@ def from_flatty(data: bytes, obj_type: type) -> Any:
         mac = Mac(data[offset:offset+16])
         offset += 16
         
-        # Read cipherLen (int64) and sequence length (uint64), then cipher text
+        # Read cipherLen (int64) 
         cipher_len, offset = FlattySerializer.deserialize_int64(data, offset)
-        seq_len, offset = FlattySerializer.deserialize_int64(data, offset)  # seq[byte] length
+        
+        # Read sequence length (int64) for cipherText seq[byte]
+        seq_len, offset = FlattySerializer.deserialize_int64(data, offset)
+        
+        # Verify that cipherLen matches the sequence length
+        if cipher_len != seq_len:
+            raise ValueError(f"EncObj deserialization error: cipherLen ({cipher_len}) != seq length ({seq_len})")
         
         # Extract cipher text
         cipher_text = data[offset:offset+seq_len]
@@ -362,12 +375,12 @@ def from_flatty(data: bytes, obj_type: type) -> Any:
         return EncObj(public_key, nonce, mac, cipher_len, cipher_text), offset
     
     elif obj_type == StaticConfig:
-        # Handle Nim ref object indicator - if data starts with 0x00 followed by a length,
-        # it's likely a ref object. But we need to be careful not to confuse this with
-        # empty strings that start with 0x00 0x00 0x00...
-        if len(data) > 8 and data[0] == 0 and struct.unpack('<Q', data[1:9])[0] > 0:
-            # This looks like a Nim ref object with the ref indicator byte
-            offset = 1
+        # StaticConfig is a ref object in Nim - first byte is nil flag
+        is_nil = data[offset] == 1
+        offset += 1
+        
+        if is_nil:
+            return None  # Handle nil StaticConfig case
         
         build_id, offset = FlattySerializer.deserialize_string(data, offset)
         deployment_id, offset = FlattySerializer.deserialize_string(data, offset)
@@ -389,8 +402,15 @@ def from_flatty(data: bytes, obj_type: type) -> Any:
         return Status(ip, external_ip, hostname, os, arch, users, boot_time)
     
     elif obj_type == Callback:
+        # Callback is a ref object in Nim - first byte is nil flag
+        is_nil = data[offset] == 1
+        offset += 1
+        
+        if is_nil:
+            return None  # Handle nil Callback case
+            
         config = from_flatty(data[offset:], StaticConfig)
-        # Calculate offset after StaticConfig
+        # Calculate offset after StaticConfig - need to recompute with nil flag
         temp_data = to_flatty(config)
         offset += len(temp_data)
         status = from_flatty(data[offset:], Status)

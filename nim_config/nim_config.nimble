@@ -9,7 +9,7 @@ srcDir        = "src"
 binDir        = "bin"
 
 installExt    = @["nim"]
-bin           = @["config"]
+bin           = @["config", "test_python_config", "simple_test_python_config"]
 
 # Dependencies
 requires "enkodo >= 0.1.5"
@@ -27,3 +27,11 @@ requires "urlly"
 task buildall, "Build the package":
   exec "nimble build config"
   exec "./bin/config"
+
+task test_python, "Test reading Python-generated config":
+  exec "nimble build test_python_config"
+  exec "./bin/test_python_config"
+
+task simple_test, "Simple test reading Python-generated config":
+  exec "nimble build simple_test_python_config"
+  exec "./bin/simple_test_python_config"
