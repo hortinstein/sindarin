@@ -8,7 +8,7 @@ import secrets
 from enkodo import (
     generate_key_pair, enc, dec, b64_str, unb64_str, 
     wrap, unwrap, wrap_key, unwrap_key,
-    encrypt_legacy, decrypt_legacy, crypto_key_exchange_public_key
+    crypto_key_exchange_public_key
 )
 from flatty import Key, Nonce, Mac, EncObj
 
@@ -128,49 +128,6 @@ class TestEncryption:
         assert decrypted is None
 
 
-class TestLegacyEncryption:
-    """Test legacy encryption functions for backward compatibility"""
-    
-    def test_encrypt_decrypt_legacy(self):
-        """Test legacy encryption/decryption functions"""
-        sender_priv, sender_pub = generate_key_pair()
-        recipient_priv, recipient_pub = generate_key_pair()
-        
-        message = b"Legacy encryption test"
-        
-        # Encrypt using legacy function
-        encrypted_data = encrypt_legacy(sender_priv.data, recipient_pub.data, message)
-        
-        # Verify structure
-        assert len(encrypted_data) >= 72  # 32 + 24 + 16 minimum
-        
-        # Decrypt using legacy function
-        decrypted = decrypt_legacy(recipient_priv.data, encrypted_data)
-        
-        assert decrypted == message
-    
-    def test_decrypt_legacy_wrong_key(self):
-        """Test legacy decryption with wrong key"""
-        sender_priv, sender_pub = generate_key_pair()
-        recipient_priv, recipient_pub = generate_key_pair()
-        wrong_priv, wrong_pub = generate_key_pair()
-        
-        message = b"Secret"
-        encrypted_data = encrypt_legacy(sender_priv.data, recipient_pub.data, message)
-        
-        decrypted = decrypt_legacy(wrong_priv.data, encrypted_data)
-        assert decrypted is None
-    
-    def test_decrypt_legacy_invalid_data(self):
-        """Test legacy decryption with invalid data"""
-        priv_key, pub_key = generate_key_pair()
-        
-        # Too short data
-        assert decrypt_legacy(priv_key.data, b"short") is None
-        
-        # Random data
-        random_data = secrets.token_bytes(100)
-        assert decrypt_legacy(priv_key.data, random_data) is None
 
 
 class TestSerialization:

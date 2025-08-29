@@ -6,13 +6,13 @@ Compatible with Nim's enkodo library for binary compatibility.
 import secrets
 import base64
 from typing import Tuple, Optional, Union
-import monocypher
 from flatty import Key, Nonce, Mac, EncObj
-
+import monocypher.bindings as mc
 
 def generate_key_pair() -> Tuple[Key, Key]:
     """Generate a public/private key pair using monocypher"""
-    private_key_bytes, public_key_bytes = monocypher.generate_key_exchange_key_pair()
+    private_key_bytes = secrets.token_bytes(32)
+    public_key_bytes = mc.crypto_x25519_public_key(private_key_bytes)
     return Key(private_key_bytes), Key(public_key_bytes)
 
 
@@ -32,13 +32,13 @@ def enc(sender_private_key: Union[Key, bytes], recipient_public_key: Union[Key, 
     nonce_bytes = secrets.token_bytes(24)
     
     # Perform key exchange to get shared key  
-    shared_key = monocypher.key_exchange(sender_private_key, recipient_public_key)
+    shared_key = mc.crypto_key_exchange(sender_private_key, recipient_public_key)
     
     # Encrypt using monocypher's lock function
-    mac_bytes, ciphertext = monocypher.lock(shared_key, nonce_bytes, message)
+    mac_bytes, ciphertext = mc.crypto_lock(shared_key, nonce_bytes, message)
     
     # Get the public key for this private key
-    exchange_public_key = monocypher.compute_key_exchange_public_key(sender_private_key)
+    exchange_public_key = mc.crypto_x25519_public_key(sender_private_key)
     
     return EncObj(
         publicKey=Key(exchange_public_key),
@@ -62,10 +62,12 @@ def dec(private_key: Union[Key, bytes], enc_obj: EncObj) -> Optional[bytes]:
         print ("publickey ",list(enc_obj.publicKey.data))
         print ("privateKey ",list(private_key))
         # Perform key exchange to get shared key
-        shared_key = monocypher.key_exchange(private_key, enc_obj.publicKey.data)
+
+        
+        shared_key = mc.crypto_key_exchange(private_key, enc_obj.publicKey.data)
         print (f"shared key",list(shared_key))
         # Decrypt using monocypher's unlock function
-        plaintext = monocypher.unlock(shared_key, enc_obj.nonce.data, 
+        plaintext = mc.crypto_unlock(shared_key, enc_obj.nonce.data, 
                                     enc_obj.mac.data, enc_obj.cipherText)
         print("plaintxt:", plaintext)
         return plaintext
@@ -140,48 +142,7 @@ def crypto_key_exchange_public_key(private_key: Union[Key, bytes]) -> Key:
     if isinstance(private_key, Key):
         private_key = private_key.data
     
-    public_key_bytes = monocypher.compute_key_exchange_public_key(private_key)
+    public_key_bytes = mc.crypto_x25519_public_key(private_key)
     return Key(public_key_bytes)
 
 
-def encrypt_legacy(sender_private_key: bytes, recipient_public_key: bytes, 
-                  message: bytes) -> bytes:
-    """
-    Legacy encrypt function that returns concatenated bytes
-    Compatible with the example in CLAUDE.md
-    """
-    nonce = secrets.token_bytes(24)
-    
-    # Perform key exchange to get shared key
-    shared_key = monocypher.key_exchange(sender_private_key, recipient_public_key)
-    
-    # Use monocypher's lock function with shared key
-    mac, ciphertext = monocypher.lock(shared_key, nonce, message)
-    exchange_key = monocypher.compute_key_exchange_public_key(sender_private_key)
-    
-    # Return exchange_key + nonce + mac + ciphertext
-    return exchange_key + nonce + mac + ciphertext
-
-
-def decrypt_legacy(private_key: bytes, encrypted_data: bytes) -> Optional[bytes]:
-    """
-    Legacy decrypt function that takes concatenated bytes
-    Compatible with the example in CLAUDE.md  
-    """
-    if len(encrypted_data) < 72:  # 32 + 24 + 16 minimum
-        return None
-        
-    public_key = encrypted_data[:32]  # First 32 bytes are the public key
-    nonce = encrypted_data[32:56]
-    mac = encrypted_data[56:72]
-    ciphertext = encrypted_data[72:]
-    
-    try:
-        # Perform key exchange to get shared key
-        shared_key = monocypher.key_exchange(private_key, public_key)
-        
-        # Use monocypher's unlock function with shared key
-        plaintext = monocypher.unlock(shared_key, nonce, mac, ciphertext)
-        return plaintext
-    except Exception:
-        return None
