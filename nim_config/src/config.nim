@@ -93,6 +93,9 @@ proc genOutFile(configIn:string,configOut:string)=
   newConfig.killEpoch = int32(configJSON["killEpoch"].getInt)
   newConfig.interval = int32(configJSON["interval"].getInt)
   let encConfig = createEncConfig(newConfig)
+  
+  echo encConfig
+  
   let b64Str = b64Str(toFlatty(encConfig))
   writeStringToFile(configOut, b64Str)
 
