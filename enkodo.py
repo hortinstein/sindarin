@@ -66,9 +66,10 @@ def dec(private_key: Union[Key, bytes], enc_obj: EncObj) -> Optional[bytes]:
         
         shared_key = mc.crypto_key_exchange(private_key, enc_obj.publicKey.data)
         print (f"shared key",list(shared_key))
-        # Decrypt using monocypher's unlock function
-        plaintext = mc.crypto_unlock(shared_key, enc_obj.nonce.data, 
-                                    enc_obj.mac.data, enc_obj.cipherText)
+        # Decrypt using monocypher's unlock function  
+        # Note: crypto_unlock signature is (key, mac, nonce, ciphertext, ad=b'')
+        plaintext = mc.crypto_unlock(shared_key, enc_obj.mac.data, 
+                                    enc_obj.nonce.data, enc_obj.cipherText)
         print("plaintxt:", plaintext)
         return plaintext
     

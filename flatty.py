@@ -202,8 +202,12 @@ class FlattySerializer:
     @staticmethod
     def deserialize_string(data: bytes, offset: int) -> Tuple[str, int]:
         """Deserialize string with length prefix"""
+        if len(data) < offset + 8:
+            raise ValueError(f"Not enough data to read string length. Need {offset + 8} bytes, got {len(data)}")
         length = struct.unpack('<Q', data[offset:offset+8])[0]
         offset += 8
+        if len(data) < offset + length:
+            raise ValueError(f"Not enough data to read string content. Need {offset + length} bytes, got {len(data)}")
         string_data = data[offset:offset+length]
         return string_data.decode('utf-8'), offset + length
     
@@ -358,6 +362,13 @@ def from_flatty(data: bytes, obj_type: type) -> Any:
         return EncObj(public_key, nonce, mac, cipher_len, cipher_text), offset
     
     elif obj_type == StaticConfig:
+        # Handle Nim ref object indicator - if data starts with 0x00 followed by a length,
+        # it's likely a ref object. But we need to be careful not to confuse this with
+        # empty strings that start with 0x00 0x00 0x00...
+        if len(data) > 8 and data[0] == 0 and struct.unpack('<Q', data[1:9])[0] > 0:
+            # This looks like a Nim ref object with the ref indicator byte
+            offset = 1
+        
         build_id, offset = FlattySerializer.deserialize_string(data, offset)
         deployment_id, offset = FlattySerializer.deserialize_string(data, offset)
         c2_pub_key = Key(data[offset:offset+32])

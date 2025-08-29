@@ -1,6 +1,6 @@
 {
   "killEpoch": "1764091654",
   "interval": "1",
-  "callback": "http://127.0.0.1:8080/",
+  "callback": "http://127.0.0.1:8080/testing",
   "c2PrivKey": "9fb5604a6ebafeaaef9c50b22b146296d5afb24c22289a978b4740a365acaee9"
 }
