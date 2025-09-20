@@ -1,3 +1,24 @@
 temp
 __pycache__
 .pytest_cache
+
+# C build artifacts
+c_sindarin/bin/
+c_sindarin/obj/
+*.o
+*.so
+*.a
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files  
+.DS_Store
+Thumbs.db

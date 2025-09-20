@@ -12,7 +12,7 @@ CORE_SOURCES = types.c flatty.c enkodo.c monocypher.c
 CORE_OBJECTS = $(CORE_SOURCES:%.c=$(OBJDIR)/%.o)
 HEADERS = $(wildcard $(SRCDIR)/*.h)
 
-TARGETS = $(BINDIR)/test_interop $(BINDIR)/config_reader $(BINDIR)/config_generator
+TARGETS = $(BINDIR)/test_interop $(BINDIR)/config_reader $(BINDIR)/config_generator $(BINDIR)/comprehensive_test
 
 all: $(TARGETS)
 
@@ -32,6 +32,9 @@ $(BINDIR)/config_reader: $(CORE_OBJECTS) $(OBJDIR)/config_reader.o | $(BINDIR)
 	$(CC) $^ -o $@ $(LIBS)
 
 $(BINDIR)/config_generator: $(CORE_OBJECTS) $(OBJDIR)/config_generator.o | $(BINDIR)
+	$(CC) $^ -o $@ $(LIBS)
+
+$(BINDIR)/comprehensive_test: $(CORE_OBJECTS) $(OBJDIR)/comprehensive_test.o | $(BINDIR)
 	$(CC) $^ -o $@ $(LIBS)
 
 libsindarin.so: $(CORE_OBJECTS)
