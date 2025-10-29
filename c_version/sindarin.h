@@ -129,4 +129,8 @@ void key_from_bytes(Key* key, const uint8_t* bytes);
 void nonce_from_bytes(Nonce* nonce, const uint8_t* bytes);
 void mac_from_bytes(Mac* mac, const uint8_t* bytes);
 
+// Base64 encoding/decoding
+uint8_t* base64_decode(const char* input, size_t input_len, size_t* output_len);
+char* base64_encode(const uint8_t* input, size_t input_len);
+
 #endif // SINDARIN_H

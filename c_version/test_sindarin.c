@@ -269,7 +269,7 @@ void test_nim_compatibility() {
     FILE* f = fopen("../nim_config/debug.config", "rb");
     if (!f) {
         printf("Note: Could not open ../nim_config/debug.config\n");
-        printf("Run 'cd nim_config && nimble run' to generate it\n\n");
+        printf("Run 'cd ../nim_config && nimble run' to generate it\n\n");
         return;
     }
 
@@ -278,18 +278,106 @@ void test_nim_compatibility() {
     long file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    printf("Reading debug.config (%ld bytes)\n", file_size);
+    printf("Reading debug.config (%ld bytes base64)\n", file_size);
 
     // Read base64 encoded data
     char* b64_data = (char*)malloc(file_size + 1);
-    fread(b64_data, 1, file_size, f);
-    b64_data[file_size] = '\0';
+    size_t bytes_read = fread(b64_data, 1, file_size, f);
+    b64_data[bytes_read] = '\0';
     fclose(f);
 
-    // TODO: Implement base64 decoding and test deserialization
-    printf("Note: Full Nim compatibility test requires base64 decoding\n");
-    printf("The serialization format should be compatible with Nim's Flatty\n\n");
+    // Remove any newlines/whitespace
+    size_t clean_len = 0;
+    for (size_t i = 0; i < bytes_read; i++) {
+        if (b64_data[i] != '\n' && b64_data[i] != '\r' && b64_data[i] != ' ') {
+            b64_data[clean_len++] = b64_data[i];
+        }
+    }
+    b64_data[clean_len] = '\0';
 
+    printf("Cleaned base64 length: %zu bytes\n", clean_len);
+
+    // Decode base64
+    size_t decoded_len;
+    uint8_t* decoded_data = base64_decode(b64_data, clean_len, &decoded_len);
+
+    if (!decoded_data) {
+        printf("ERROR: Failed to decode base64 data\n\n");
+        free(b64_data);
+        return;
+    }
+
+    printf("Decoded binary length: %zu bytes\n", decoded_len);
+
+    // Deserialize EncConfig
+    EncConfig* enc_config = deserialize_enc_config(decoded_data, decoded_len);
+
+    if (!enc_config) {
+        printf("ERROR: Failed to deserialize EncConfig\n\n");
+        free(decoded_data);
+        free(b64_data);
+        return;
+    }
+
+    printf("Successfully deserialized EncConfig from Nim!\n");
+    print_hex("Private Key", enc_config->privKey.data, 32);
+    print_hex("Public Key", enc_config->pubKey.data, 32);
+    printf("Cipher length: %ld bytes\n", enc_config->encObj.cipherLen);
+
+    // Decrypt the config
+    printf("\nAttempting decryption...\n");
+    print_hex("Decryption Private Key", enc_config->privKey.data, 32);
+    print_hex("EncObj Public Key", enc_config->encObj.publicKey.data, 32);
+    print_hex("Nonce", enc_config->encObj.nonce.data, 24);
+    print_hex("MAC", enc_config->encObj.mac.data, 16);
+
+    size_t decrypted_len;
+    uint8_t* decrypted_data = decrypt_message(&enc_config->privKey,
+                                               &enc_config->encObj,
+                                               &decrypted_len);
+
+    if (!decrypted_data) {
+        printf("ERROR: Failed to decrypt config\n");
+        printf("This may be due to incompatible encryption between Nim and C\n\n");
+        free_enc_config(enc_config);
+        free(decoded_data);
+        free(b64_data);
+        return;
+    }
+
+    printf("Successfully decrypted! Plaintext length: %zu bytes\n", decrypted_len);
+
+    // Deserialize the decrypted StaticConfig
+    size_t offset = 0;
+    StaticConfig* static_config = deserialize_static_config(decrypted_data,
+                                                             decrypted_len,
+                                                             &offset);
+
+    if (!static_config) {
+        printf("ERROR: Failed to deserialize StaticConfig\n\n");
+        free(decrypted_data);
+        free_enc_config(enc_config);
+        free(decoded_data);
+        free(b64_data);
+        return;
+    }
+
+    printf("\nDecrypted StaticConfig from Nim:\n");
+    printf("  Build ID: %s\n", static_config->buildID);
+    printf("  Deployment ID: %s\n", static_config->deploymentID);
+    printf("  Kill Epoch: %d\n", static_config->killEpoch);
+    printf("  Interval: %d\n", static_config->interval);
+    printf("  Callback: %s\n", static_config->callback);
+    print_hex("  C2 Public Key", static_config->c2PubKey.data, 32);
+
+    printf("\n✓ Nim compatibility test: PASSED\n");
+    printf("  Binary format is fully compatible!\n\n");
+
+    // Cleanup
+    free_static_config(static_config);
+    free(decrypted_data);
+    free_enc_config(enc_config);
+    free(decoded_data);
     free(b64_data);
 }
 

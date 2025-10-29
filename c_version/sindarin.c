@@ -580,6 +580,15 @@ uint8_t* decrypt_message(const Key* priv_key, const EncObj* enc_obj, size_t* out
     uint8_t shared_key[32];
     crypto_x25519(shared_key, priv_key->data, enc_obj->publicKey.data);
 
+    // Debug: Print shared key
+    #ifdef DEBUG_CRYPTO
+    printf("DEBUG shared_key: ");
+    for (int i = 0; i < 32; i++) {
+        printf("%02x", shared_key[i]);
+    }
+    printf("\n");
+    #endif
+
     // Allocate plaintext buffer
     uint8_t* plaintext = (uint8_t*)malloc(enc_obj->cipherLen);
 
@@ -595,10 +604,118 @@ uint8_t* decrypt_message(const Key* priv_key, const EncObj* enc_obj, size_t* out
 
     if (result != 0) {
         // Decryption failed (MAC mismatch)
+        #ifdef DEBUG_CRYPTO
+        printf("DEBUG: crypto_aead_unlock returned %d (MAC mismatch)\n", result);
+        #endif
         free(plaintext);
         return NULL;
     }
 
     *out_len = enc_obj->cipherLen;
     return plaintext;
+}
+
+// ============================================================================
+// Base64 Encoding/Decoding Functions
+// ============================================================================
+
+static const char base64_chars[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
+
+static const char base64_url_chars[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789-_";
+
+static int base64_decode_char(char c, bool url_safe) {
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+    if (c >= '0' && c <= '9') return c - '0' + 52;
+    if (!url_safe && c == '+') return 62;
+    if (!url_safe && c == '/') return 63;
+    if (url_safe && c == '-') return 62;
+    if (url_safe && c == '_') return 63;
+    return -1;
+}
+
+uint8_t* base64_decode(const char* input, size_t input_len, size_t* output_len) {
+    if (input_len == 0) {
+        *output_len = 0;
+        return NULL;
+    }
+
+    // Detect if URL-safe encoding is used
+    bool url_safe = false;
+    for (size_t i = 0; i < input_len; i++) {
+        if (input[i] == '-' || input[i] == '_') {
+            url_safe = true;
+            break;
+        }
+    }
+
+    // Calculate output length
+    size_t padding = 0;
+    if (input_len >= 2 && input[input_len - 1] == '=') padding++;
+    if (input_len >= 3 && input[input_len - 2] == '=') padding++;
+
+    size_t decoded_len = (input_len * 3) / 4 - padding;
+    uint8_t* output = (uint8_t*)malloc(decoded_len + 1);
+
+    size_t out_idx = 0;
+    uint32_t buffer = 0;
+    int bits = 0;
+
+    for (size_t i = 0; i < input_len; i++) {
+        if (input[i] == '=' || input[i] == '\n' || input[i] == '\r') {
+            continue;
+        }
+
+        int value = base64_decode_char(input[i], url_safe);
+        if (value < 0) {
+            continue; // Skip invalid characters
+        }
+
+        buffer = (buffer << 6) | value;
+        bits += 6;
+
+        if (bits >= 8) {
+            bits -= 8;
+            output[out_idx++] = (buffer >> bits) & 0xFF;
+        }
+    }
+
+    *output_len = out_idx;
+    return output;
+}
+
+char* base64_encode(const uint8_t* input, size_t input_len) {
+    size_t output_len = 4 * ((input_len + 2) / 3);
+    char* output = (char*)malloc(output_len + 1);
+
+    size_t out_idx = 0;
+    size_t i = 0;
+
+    while (i < input_len) {
+        uint32_t octet_a = i < input_len ? input[i++] : 0;
+        uint32_t octet_b = i < input_len ? input[i++] : 0;
+        uint32_t octet_c = i < input_len ? input[i++] : 0;
+
+        uint32_t triple = (octet_a << 16) + (octet_b << 8) + octet_c;
+
+        output[out_idx++] = base64_chars[(triple >> 18) & 0x3F];
+        output[out_idx++] = base64_chars[(triple >> 12) & 0x3F];
+        output[out_idx++] = base64_chars[(triple >> 6) & 0x3F];
+        output[out_idx++] = base64_chars[triple & 0x3F];
+    }
+
+    // Add padding
+    size_t padding = (3 - (input_len % 3)) % 3;
+    for (size_t j = 0; j < padding; j++) {
+        output[output_len - 1 - j] = '=';
+    }
+
+    output[output_len] = '\0';
+    return output;
 }
