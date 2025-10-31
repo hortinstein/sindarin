@@ -16,8 +16,9 @@ TEST_OBJECTS = test_sindarin.o
 # Targets
 LIB = libsindarin.a
 TEST_BIN = test_sindarin
+PYTHON_TEST_BIN = test_python_config
 
-.PHONY: all clean test
+.PHONY: all clean test test-python
 
 all: $(LIB) $(TEST_BIN)
 
@@ -29,6 +30,10 @@ $(LIB): $(OBJECTS)
 $(TEST_BIN): $(TEST_OBJECTS) $(LIB)
 	$(CC) $(CFLAGS) -o $@ $(TEST_OBJECTS) -L. -lsindarin $(LDFLAGS)
 
+# Build Python config test binary
+$(PYTHON_TEST_BIN): test_python_config.o $(LIB)
+	$(CC) $(CFLAGS) -o $@ test_python_config.o -L. -lsindarin $(LDFLAGS)
+
 # Compile source files
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -37,9 +42,13 @@ $(TEST_BIN): $(TEST_OBJECTS) $(LIB)
 test: $(TEST_BIN)
 	./$(TEST_BIN)
 
+# Run Python interop test
+test-python: $(PYTHON_TEST_BIN)
+	./$(PYTHON_TEST_BIN)
+
 # Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TEST_OBJECTS) $(LIB) $(TEST_BIN) monocypher.o
+	rm -f $(OBJECTS) $(TEST_OBJECTS) $(LIB) $(TEST_BIN) $(PYTHON_TEST_BIN) test_python_config.o monocypher.o
 
 # Install library (optional)
 install: $(LIB)

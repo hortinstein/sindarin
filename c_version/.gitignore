@@ -2,6 +2,7 @@
 *.o
 *.a
 test_sindarin
+test_python_config
 
 # Downloaded library (included in repo but can be regenerated)
 # Keeping monocypher.c and monocypher.h as they're dependencies
