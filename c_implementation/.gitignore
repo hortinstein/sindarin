@@ -1,0 +1,14 @@
+# Build artifacts
+*.o
+*.a
+test_encryption
+test_serialization
+test_c_to_python
+test_python_to_c
+test_roundtrip
+
+# Test data files
+*.bin
+*.config
+*.key
+test_*.dat

@@ -7,12 +7,12 @@ import secrets
 import base64
 from typing import Tuple, Optional, Union
 from flatty import Key, Nonce, Mac, EncObj
-import monocypher.bindings as mc
+import monocypher
 
 def generate_key_pair() -> Tuple[Key, Key]:
     """Generate a public/private key pair using monocypher"""
     private_key_bytes = secrets.token_bytes(32)
-    public_key_bytes = mc.crypto_x25519_public_key(private_key_bytes)
+    public_key_bytes = monocypher.compute_key_exchange_public_key(private_key_bytes)
     return Key(private_key_bytes), Key(public_key_bytes)
 
 
@@ -30,15 +30,15 @@ def enc(sender_private_key: Union[Key, bytes], recipient_public_key: Union[Key, 
     
     # Generate random nonce
     nonce_bytes = secrets.token_bytes(24)
-    
-    # Perform key exchange to get shared key  
-    shared_key = mc.crypto_key_exchange(sender_private_key, recipient_public_key)
-    
+
+    # Perform key exchange to get shared key
+    shared_key = monocypher.key_exchange(sender_private_key, recipient_public_key)
+
     # Encrypt using monocypher's lock function
-    mac_bytes, ciphertext = mc.crypto_lock(shared_key, nonce_bytes, message)
-    
+    mac_bytes, ciphertext = monocypher.lock(shared_key, nonce_bytes, message)
+
     # Get the public key for this private key
-    exchange_public_key = mc.crypto_x25519_public_key(sender_private_key)
+    exchange_public_key = monocypher.compute_key_exchange_public_key(sender_private_key)
     
     return EncObj(
         publicKey=Key(exchange_public_key),
@@ -63,13 +63,12 @@ def dec(private_key: Union[Key, bytes], enc_obj: EncObj) -> Optional[bytes]:
         print ("privateKey ",list(private_key))
         # Perform key exchange to get shared key
 
-        
-        shared_key = mc.crypto_key_exchange(private_key, enc_obj.publicKey.data)
+
+        shared_key = monocypher.key_exchange(private_key, enc_obj.publicKey.data)
         print (f"shared key",list(shared_key))
-        # Decrypt using monocypher's unlock function  
-        # Note: crypto_unlock signature is (key, mac, nonce, ciphertext, ad=b'')
-        plaintext = mc.crypto_unlock(shared_key, enc_obj.mac.data, 
-                                    enc_obj.nonce.data, enc_obj.cipherText)
+        # Decrypt using monocypher's unlock function
+        plaintext = monocypher.unlock(shared_key, enc_obj.nonce.data,
+                                     enc_obj.mac.data, enc_obj.cipherText)
         print("plaintxt:", plaintext)
         return plaintext
     
@@ -142,8 +141,8 @@ def crypto_key_exchange_public_key(private_key: Union[Key, bytes]) -> Key:
     """Get public key from private key using monocypher"""
     if isinstance(private_key, Key):
         private_key = private_key.data
-    
-    public_key_bytes = mc.crypto_x25519_public_key(private_key)
+
+    public_key_bytes = monocypher.compute_key_exchange_public_key(private_key)
     return Key(public_key_bytes)
 
 
